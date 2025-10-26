@@ -35,13 +35,28 @@ const BulkContentManager = () => {
   const [resizing, setResizing] = useState(null);
   const tableRef = useRef(null);
 
+  // Load saved sheets from localStorage on mount
   useEffect(() => {
-    const sheets = JSON.parse(localStorage.getItem('savedSheets') || '[]');
-    setSavedSheets(sheets);
+    const loadSavedSheets = () => {
+      try {
+        const sheets = localStorage.getItem('savedSheets');
+        if (sheets) {
+          setSavedSheets(JSON.parse(sheets));
+        }
+      } catch (error) {
+        console.error('Error loading saved sheets:', error);
+      }
+    };
+    loadSavedSheets();
   }, []);
 
+  // Save sheets to localStorage whenever they change
   useEffect(() => {
-    localStorage.setItem('savedSheets', JSON.stringify(savedSheets));
+    try {
+      localStorage.setItem('savedSheets', JSON.stringify(savedSheets));
+    } catch (error) {
+      console.error('Error saving sheets:', error);
+    }
   }, [savedSheets]);
 
   const normalizeText = (text) => {
@@ -55,6 +70,14 @@ const BulkContentManager = () => {
     return isNaN(mins) ? '' : Math.round(mins * 60);
   };
 
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    return day + '-' + month + '-' + date.getFullYear();
+  };
+
   const handleGenerate = () => {
     const names = namesList.split(',').map(n => n.trim()).filter(n => n);
     if (names.length === 0) return alert('Please enter at least one name');
@@ -66,8 +89,8 @@ const BulkContentManager = () => {
       return {
         contentId, provider, contentType, keywords, rating,
         duration: minutesToSeconds(durationMinutes), yearOfRelease,
-        landscape:  contentId + '_Landscape.jpg',
-        portrait:  contentId + '_Portrait.jpg',
+        landscape: contentId + '_Landscape.jpg',
+        portrait: contentId + '_Portrait.jpg',
         languages, summary, title: summary, filename: contentId + '.mp4',
         actor, director, genres, audioLanguages, isHd,
         expiryDate: expiryDate ? formatDate(expiryDate) : '', originalName: name
@@ -75,7 +98,6 @@ const BulkContentManager = () => {
     });
     setContentData([...contentData, ...newData]);
     
-    // Scroll to table view after generating
     setTimeout(() => {
       const tableElement = document.getElementById('content-table-section');
       if (tableElement) {
@@ -87,19 +109,27 @@ const BulkContentManager = () => {
   const saveCurrentSheet = () => {
     if (contentData.length === 0) return alert('No data to save');
     const sheetName = currentSheetName || `Sheet_${Date.now()}`;
-    const sheet = { name: sheetName, data: contentData, timestamp: Date.now() };
+    
+    const sheet = { 
+      name: sheetName, 
+      data: contentData, 
+      timestamp: Date.now() 
+    };
+    
     const existingIndex = savedSheets.findIndex(s => s.name === sheetName);
+    let updatedSheets;
     
     if (existingIndex >= 0) {
-      const updated = [...savedSheets];
-      updated[existingIndex] = sheet;
-      setSavedSheets(updated);
-      alert('Sheet updated successfully!');
+      updatedSheets = [...savedSheets];
+      updatedSheets[existingIndex] = sheet;
+      alert('✅ Sheet updated successfully!');
     } else {
-      setSavedSheets([...savedSheets, sheet]);
-      setCurrentSheetName(sheetName);
-      alert('Sheet saved successfully!');
+      updatedSheets = [...savedSheets, sheet];
+      alert('✅ Sheet saved successfully!');
     }
+    
+    setSavedSheets(updatedSheets);
+    setCurrentSheetName(sheetName);
   };
 
   const loadSheet = (sheetName) => {
@@ -115,8 +145,10 @@ const BulkContentManager = () => {
   const deleteSheet = (sheetName, e) => {
     e.stopPropagation();
     if (!window.confirm(`Delete "${sheetName}"?`)) return;
-    const updated = savedSheets.filter(s => s.name !== sheetName);
-    setSavedSheets(updated);
+    
+    const updatedSheets = savedSheets.filter(s => s.name !== sheetName);
+    setSavedSheets(updatedSheets);
+    
     if (currentSheetName === sheetName) {
       setContentData([]);
       setCurrentSheetName('');
@@ -141,8 +173,12 @@ const BulkContentManager = () => {
     if (savedSheets.some(s => s.name === editedSheetName && s.name !== currentSheetName)) {
       return alert('A sheet with this name already exists');
     }
-    const updated = savedSheets.map(s => s.name === currentSheetName ? { ...s, name: editedSheetName } : s);
-    setSavedSheets(updated);
+    
+    const updatedSheets = savedSheets.map(s => 
+      s.name === currentSheetName ? { ...s, name: editedSheetName } : s
+    );
+    
+    setSavedSheets(updatedSheets);
     setCurrentSheetName(editedSheetName);
     setIsEditingName(false);
   };
@@ -176,14 +212,6 @@ const BulkContentManager = () => {
 
   const cancelCellEdit = () => setEditingCell({ index: null, field: null, value: '' });
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    return day + '-' + month + '-' + date.getFullYear();
-  };
-
   const handleDelete = (index) => setContentData(contentData.filter((_, i) => i !== index));
 
   const handleMouseDown = (e, column) => {
@@ -209,12 +237,15 @@ const BulkContentManager = () => {
 
   const exportToCSV = () => {
     if (contentData.length === 0) return alert('No data to export');
-    const headers = ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration',
+    const headers = ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration(sec)',
+      'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
+      'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate'];
+    const dataKeys = ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration',
       'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
       'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate'];
     const csvRows = [headers.join(',')];
     contentData.forEach(row => {
-      const values = headers.map(h => '"' + (row[h] || '').toString().replace(/"/g, '""') + '"');
+      const values = dataKeys.map(h => '"' + (row[h] || '').toString().replace(/"/g, '""') + '"');
       csvRows.push(values.join(','));
     });
     const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
@@ -228,7 +259,10 @@ const BulkContentManager = () => {
 
   const exportToXLSX = () => {
     if (contentData.length === 0) return alert('No data to export');
-    const headers = ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration',
+    const headers = ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration(sec)',
+      'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
+      'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate'];
+    const dataKeys = ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration',
       'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
       'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate'];
     let xml = '<?xml version="1.0"?>\n<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n<Worksheet ss:Name="Content">\n<Table>\n<Row>\n';
@@ -236,7 +270,7 @@ const BulkContentManager = () => {
     xml += '</Row>\n';
     contentData.forEach(row => {
       xml += '<Row>';
-      headers.forEach(h => {
+      dataKeys.forEach(h => {
         const v = (row[h] || '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         xml += '<Cell><Data ss:Type="String">' + v + '</Data></Cell>';
       });
@@ -296,6 +330,7 @@ const BulkContentManager = () => {
             Back to Form
           </button>
         </div>
+        
         {savedSheets.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-12 text-center">
             <p className="text-gray-500 text-lg">No saved sheets yet</p>
@@ -351,13 +386,17 @@ const BulkContentManager = () => {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-800">Bulk Content Manager</h1>
           <div className="flex gap-2">
+            <button onClick={createNewSheet}
+              className="bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 transition flex items-center gap-2">
+              <Plus size={18} />New Sheet
+            </button>
             <button onClick={() => setViewMode('grid')}
               className="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition flex items-center gap-2">
               <Grid size={18} />View All Sheets
             </button>
             <div className="relative">
               <button onClick={() => setShowSheetMenu(!showSheetMenu)}
-                className="bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 transition">
+                className="bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 transition">
                 Saved Sheets ({savedSheets.length})
               </button>
               {showSheetMenu && (
@@ -422,10 +461,6 @@ const BulkContentManager = () => {
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-700">Add New Bulk</h2>
-            <button onClick={saveCurrentSheet}
-              className="bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition flex items-center gap-2">
-              <Save size={18} />Save Sheet
-            </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -525,6 +560,10 @@ const BulkContentManager = () => {
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-gray-700">Content Data ({contentData.length} items)</h2>
               <div className="flex gap-2">
+                <button onClick={saveCurrentSheet}
+                  className="bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition flex items-center gap-2">
+                  <Save size={18} />Save Sheet
+                </button>
                 <button onClick={exportToCSV}
                   className="bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition flex items-center gap-2">
                   <Download size={18} />Export CSV
@@ -550,8 +589,8 @@ const BulkContentManager = () => {
                     <TableHeader column="contentType" label="Content Type" />
                     <TableHeader column="keywords" label="Keywords" />
                     <TableHeader column="rating" label="Rating" />
-                    <TableHeader column="duration(sec)" label="Duration (sec)" />
-                    <TableHeader column="yearOfRelease" label="yearOfRelease" />
+                    <TableHeader column="duration" label="Duration (sec)" />
+                    <TableHeader column="yearOfRelease" label="Year" />
                     <TableHeader column="landscape" label="Landscape" />
                     <TableHeader column="portrait" label="Portrait" />
                     <TableHeader column="languages" label="Languages" />
@@ -580,7 +619,7 @@ const BulkContentManager = () => {
                       <TableCell index={index} field="contentType" value={row.contentType} />
                       <TableCell index={index} field="keywords" value={row.keywords} />
                       <TableCell index={index} field="rating" value={row.rating} />
-                      <TableCell index={index} field="duration(sec)" value={row.duration} />
+                      <TableCell index={index} field="duration" value={row.duration} />
                       <TableCell index={index} field="yearOfRelease" value={row.yearOfRelease} />
                       <TableCell index={index} field="landscape" value={row.landscape} />
                       <TableCell index={index} field="portrait" value={row.portrait} />
@@ -610,4 +649,5 @@ const BulkContentManager = () => {
     </div>
   );
 };
+
 export default BulkContentManager;
