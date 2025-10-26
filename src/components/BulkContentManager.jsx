@@ -550,8 +550,8 @@ const BulkContentManager = () => {
                     <TableHeader column="contentType" label="Content Type" />
                     <TableHeader column="keywords" label="Keywords" />
                     <TableHeader column="rating" label="Rating" />
-                    <TableHeader column="duration" label="Duration (sec)" />
-                    <TableHeader column="yearOfRelease" label="Year" />
+                    <TableHeader column="duration(sec)" label="Duration (sec)" />
+                    <TableHeader column="yearOfRelease" label="yearOfRelease" />
                     <TableHeader column="landscape" label="Landscape" />
                     <TableHeader column="portrait" label="Portrait" />
                     <TableHeader column="languages" label="Languages" />
@@ -580,7 +580,7 @@ const BulkContentManager = () => {
                       <TableCell index={index} field="contentType" value={row.contentType} />
                       <TableCell index={index} field="keywords" value={row.keywords} />
                       <TableCell index={index} field="rating" value={row.rating} />
-                      <TableCell index={index} field="duration" value={row.duration} />
+                      <TableCell index={index} field="duration(sec)" value={row.duration} />
                       <TableCell index={index} field="yearOfRelease" value={row.yearOfRelease} />
                       <TableCell index={index} field="landscape" value={row.landscape} />
                       <TableCell index={index} field="portrait" value={row.portrait} />
@@ -610,5 +610,4 @@ const BulkContentManager = () => {
     </div>
   );
 };
-
 export default BulkContentManager;
