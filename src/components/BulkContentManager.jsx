@@ -261,12 +261,22 @@ const BulkContentManager = () => {
 
   const exportToCSV = () => {
     if (contentData.length === 0) return alert('No data to export');
-    const headers = ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration(sec)',
+    
+    const baseHeaders = ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration(sec)',
       'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
-      'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate', 'trailerVideo', 'trailerAudio', 'trailerLanguage'];
-    const dataKeys = ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration',
+      'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate'];
+    const baseKeys = ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration',
       'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
-      'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate', 'trailerVideo', 'trailerAudio', 'trailerLanguage'];
+      'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate'];
+    
+    const trailerHeaders = ['trailerVideo', 'trailerAudio', 'trailerLanguage'];
+    const trailerKeys = ['trailerVideo', 'trailerAudio', 'trailerLanguage'];
+    
+    const hasTrailerData = contentData.some(row => row.trailerVideo || row.trailerAudio || row.trailerLanguage);
+    
+    const headers = hasTrailerData ? [...baseHeaders, ...trailerHeaders] : baseHeaders;
+    const dataKeys = hasTrailerData ? [...baseKeys, ...trailerKeys] : baseKeys;
+    
     const csvRows = [headers.join(',')];
     contentData.forEach(row => {
       const values = dataKeys.map(h => '"' + (row[h] || '').toString().replace(/"/g, '""') + '"');
@@ -283,12 +293,22 @@ const BulkContentManager = () => {
 
   const exportToXLSX = () => {
     if (contentData.length === 0) return alert('No data to export');
-    const headers = ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration(sec)',
+    
+    const baseHeaders = ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration(sec)',
       'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
-      'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate', 'trailerVideo', 'trailerAudio', 'trailerLanguage'];
-    const dataKeys = ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration',
+      'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate'];
+    const baseKeys = ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration',
       'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
-      'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate', 'trailerVideo', 'trailerAudio', 'trailerLanguage'];
+      'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate'];
+    
+    const trailerHeaders = ['trailerVideo', 'trailerAudio', 'trailerLanguage'];
+    const trailerKeys = ['trailerVideo', 'trailerAudio', 'trailerLanguage'];
+    
+    const hasTrailerData = contentData.some(row => row.trailerVideo || row.trailerAudio || row.trailerLanguage);
+    
+    const headers = hasTrailerData ? [...baseHeaders, ...trailerHeaders] : baseHeaders;
+    const dataKeys = hasTrailerData ? [...baseKeys, ...trailerKeys] : baseKeys;
+    
     let xml = '<?xml version="1.0"?>\n<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n<Worksheet ss:Name="Content">\n<Table>\n<Row>\n';
     headers.forEach(h => xml += '<Cell><Data ss:Type="String">' + h + '</Data></Cell>');
     xml += '</Row>\n';
@@ -670,9 +690,13 @@ const BulkContentManager = () => {
                     <TableHeader column="audioLanguages" label="Audio Languages" />
                     <TableHeader column="isHd" label="Is HD" />
                     <TableHeader column="expiryDate" label="Expiry Date" />
-                    <TableHeader column="trailerVideo" label="Trailer Video" />
-                    <TableHeader column="trailerAudio" label="Trailer Audio" />
-                    <TableHeader column="trailerLanguage" label="Trailer Language" />
+                    {contentData.some(row => row.trailerVideo || row.trailerAudio || row.trailerLanguage) && (
+                      <>
+                        <TableHeader column="trailerVideo" label="Trailer Video" />
+                        <TableHeader column="trailerAudio" label="Trailer Audio" />
+                        <TableHeader column="trailerLanguage" label="Trailer Language" />
+                      </>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -703,9 +727,13 @@ const BulkContentManager = () => {
                       <TableCell index={index} field="audioLanguages" value={row.audioLanguages} />
                       <TableCell index={index} field="isHd" value={row.isHd} />
                       <TableCell index={index} field="expiryDate" value={row.expiryDate} />
-                      <TableCell index={index} field="trailerVideo" value={row.trailerVideo} />
-                      <TableCell index={index} field="trailerAudio" value={row.trailerAudio} />
-                      <TableCell index={index} field="trailerLanguage" value={row.trailerLanguage} />
+                      {contentData.some(r => r.trailerVideo || r.trailerAudio || r.trailerLanguage) && (
+                        <>
+                          <TableCell index={index} field="trailerVideo" value={row.trailerVideo} />
+                          <TableCell index={index} field="trailerAudio" value={row.trailerAudio} />
+                          <TableCell index={index} field="trailerLanguage" value={row.trailerLanguage} />
+                        </>
+                      )}
                     </tr>
                   ))}
                 </tbody>
