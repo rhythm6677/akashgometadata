@@ -18,6 +18,9 @@ const BulkContentManager = () => {
   const [audioLanguages, setAudioLanguages] = useState('');
   const [isHd, setIsHd] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
+  const [trailerAudio, setTrailerAudio] = useState('');
+  const [trailerLanguage, setTrailerLanguage] = useState('');
+  const [isTrailerMode, setIsTrailerMode] = useState(false);
   const [contentData, setContentData] = useState([]);
   const [savedSheets, setSavedSheets] = useState([]);
   const [currentSheetName, setCurrentSheetName] = useState('');
@@ -30,12 +33,12 @@ const BulkContentManager = () => {
     actions: 80, contentId: 200, provider: 150, contentType: 150, keywords: 150,
     rating: 100, duration: 120, yearOfRelease: 100, landscape: 250, portrait: 250,
     languages: 120, summary: 300, title: 300, filename: 250, actor: 150, director: 150,
-    genres: 150, audioLanguages: 150, isHd: 80, expiryDate: 120
+    genres: 150, audioLanguages: 150, isHd: 80, expiryDate: 120, trailerVideo: 250,
+    trailerAudio: 150, trailerLanguage: 150
   });
   const [resizing, setResizing] = useState(null);
   const tableRef = useRef(null);
 
-  // Load saved sheets from localStorage on mount
   useEffect(() => {
     const loadSavedSheets = () => {
       try {
@@ -50,7 +53,6 @@ const BulkContentManager = () => {
     loadSavedSheets();
   }, []);
 
-  // Save sheets to localStorage whenever they change
   useEffect(() => {
     try {
       localStorage.setItem('savedSheets', JSON.stringify(savedSheets));
@@ -86,15 +88,38 @@ const BulkContentManager = () => {
     const newData = names.map(name => {
       const contentId = generateContentId(name, extension);
       const summary = name + summaryPrefix;
-      return {
-        contentId, provider, contentType, keywords, rating,
-        duration: minutesToSeconds(durationMinutes), yearOfRelease,
-        landscape: contentId + '_Landscape.jpg',
-        portrait: contentId + '_Portrait.jpg',
-        languages, summary, title: summary, filename: contentId + '.mp4',
-        actor, director, genres, audioLanguages, isHd,
-        expiryDate: expiryDate ? formatDate(expiryDate) : '', originalName: name
-      };
+      
+      if (isTrailerMode) {
+        return {
+          contentId, provider, contentType, keywords, rating,
+          duration: minutesToSeconds(durationMinutes), yearOfRelease,
+          landscape: contentId + '_Landscape.jpg',
+          portrait: contentId + '_Portrait.jpg',
+          languages, summary, title: summary, 
+          filename: '',
+          actor, director, genres, audioLanguages, isHd,
+          expiryDate: expiryDate ? formatDate(expiryDate) : '',
+          trailerVideo: contentId + '.mp4',
+          trailerAudio: trailerAudio,
+          trailerLanguage: trailerLanguage,
+          originalName: name
+        };
+      } else {
+        return {
+          contentId, provider, contentType, keywords, rating,
+          duration: minutesToSeconds(durationMinutes), yearOfRelease,
+          landscape: contentId + '_Landscape.jpg',
+          portrait: contentId + '_Portrait.jpg',
+          languages, summary, title: summary, 
+          filename: contentId + '.mp4',
+          actor, director, genres, audioLanguages, isHd,
+          expiryDate: expiryDate ? formatDate(expiryDate) : '',
+          trailerVideo: '',
+          trailerAudio: '',
+          trailerLanguage: '',
+          originalName: name
+        };
+      }
     });
     setContentData([...contentData, ...newData]);
     
@@ -239,10 +264,10 @@ const BulkContentManager = () => {
     if (contentData.length === 0) return alert('No data to export');
     const headers = ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration(sec)',
       'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
-      'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate'];
+      'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate', 'trailerVideo', 'trailerAudio', 'trailerLanguage'];
     const dataKeys = ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration',
       'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
-      'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate'];
+      'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate', 'trailerVideo', 'trailerAudio', 'trailerLanguage'];
     const csvRows = [headers.join(',')];
     contentData.forEach(row => {
       const values = dataKeys.map(h => '"' + (row[h] || '').toString().replace(/"/g, '""') + '"');
@@ -261,10 +286,10 @@ const BulkContentManager = () => {
     if (contentData.length === 0) return alert('No data to export');
     const headers = ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration(sec)',
       'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
-      'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate'];
+      'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate', 'trailerVideo', 'trailerAudio', 'trailerLanguage'];
     const dataKeys = ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration',
       'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
-      'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate'];
+      'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate', 'trailerVideo', 'trailerAudio', 'trailerLanguage'];
     let xml = '<?xml version="1.0"?>\n<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n<Worksheet ss:Name="Content">\n<Table>\n<Row>\n';
     headers.forEach(h => xml += '<Cell><Data ss:Type="String">' + h + '</Data></Cell>');
     xml += '</Row>\n';
@@ -461,7 +486,33 @@ const BulkContentManager = () => {
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-700">Add New Bulk</h2>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-gray-700">Trailer Mode:</span>
+              <button
+                onClick={() => setIsTrailerMode(!isTrailerMode)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  isTrailerMode ? 'bg-blue-600' : 'bg-gray-300'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    isTrailerMode ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+              <span className={`text-sm font-semibold ${isTrailerMode ? 'text-blue-600' : 'text-gray-500'}`}>
+                {isTrailerMode ? 'ON' : 'OFF'}
+              </span>
+            </div>
           </div>
+
+          {isTrailerMode && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+              <p className="text-sm text-blue-800">
+                <strong>Trailer Mode Active:</strong> Filename will be empty, trailerVideo will contain the video filename.
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="col-span-full">
@@ -547,6 +598,23 @@ const BulkContentManager = () => {
               <input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
+            
+            {isTrailerMode && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Trailer Audio</label>
+                  <input type="text" value={trailerAudio} onChange={(e) => setTrailerAudio(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., English, Hindi" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Trailer Language</label>
+                  <input type="text" value={trailerLanguage} onChange={(e) => setTrailerLanguage(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., en, hi" />
+                </div>
+              </>
+            )}
           </div>
 
           <button onClick={handleGenerate}
@@ -603,6 +671,9 @@ const BulkContentManager = () => {
                     <TableHeader column="audioLanguages" label="Audio Languages" />
                     <TableHeader column="isHd" label="Is HD" />
                     <TableHeader column="expiryDate" label="Expiry Date" />
+                    <TableHeader column="trailerVideo" label="Trailer Video" />
+                    <TableHeader column="trailerAudio" label="Trailer Audio" />
+                    <TableHeader column="trailerLanguage" label="Trailer Language" />
                   </tr>
                 </thead>
                 <tbody>
@@ -633,6 +704,9 @@ const BulkContentManager = () => {
                       <TableCell index={index} field="audioLanguages" value={row.audioLanguages} />
                       <TableCell index={index} field="isHd" value={row.isHd} />
                       <TableCell index={index} field="expiryDate" value={row.expiryDate} />
+                      <TableCell index={index} field="trailerVideo" value={row.trailerVideo} />
+                      <TableCell index={index} field="trailerAudio" value={row.trailerAudio} />
+                      <TableCell index={index} field="trailerLanguage" value={row.trailerLanguage} />
                     </tr>
                   ))}
                 </tbody>
