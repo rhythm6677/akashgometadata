@@ -21,6 +21,7 @@ const BulkContentManager = () => {
   const [trailerAudio, setTrailerAudio] = useState('');
   const [trailerLanguage, setTrailerLanguage] = useState('');
   const [isTrailerMode, setIsTrailerMode] = useState(false);
+  const [useCustomSummary, setUseCustomSummary] = useState(false);
   const [contentData, setContentData] = useState([]);
   const [savedSheets, setSavedSheets] = useState([]);
   const [currentSheetName, setCurrentSheetName] = useState('');
@@ -82,11 +83,12 @@ const BulkContentManager = () => {
 
   const handleGenerate = () => {
     const names = namesList.split(',').map(n => n.trim()).filter(n => n);
-    if (names.length === 0) return;
+    if (names.length === 0) return alert('Please enter at least one name');
 
     const newData = names.map(name => {
       const contentId = generateContentId(name, extension);
-      const summary = name + summaryPrefix;
+      // Use custom summary if toggle is on, otherwise add prefix to name
+      const summary = useCustomSummary ? summaryPrefix : (name + summaryPrefix);
       
       if (isTrailerMode) {
         return {
@@ -262,20 +264,24 @@ const BulkContentManager = () => {
   const exportToCSV = () => {
     if (contentData.length === 0) return alert('No data to export');
     
-    const baseHeaders = ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration(sec)',
-      'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
-      'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate'];
-    const baseKeys = ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration',
-      'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
-      'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate'];
-    
-    const trailerHeaders = ['trailerVideo', 'trailerAudio', 'trailerLanguage'];
-    const trailerKeys = ['trailerVideo', 'trailerAudio', 'trailerLanguage'];
-    
+    // Check if any row has trailer data
     const hasTrailerData = contentData.some(row => row.trailerVideo || row.trailerAudio || row.trailerLanguage);
     
-    const headers = hasTrailerData ? [...baseHeaders, ...trailerHeaders] : baseHeaders;
-    const dataKeys = hasTrailerData ? [...baseKeys, ...trailerKeys] : baseKeys;
+    const headers = hasTrailerData 
+      ? ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration(sec)',
+         'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
+         'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate', 'trailerVideo', 'trailerAudio', 'trailerLanguage']
+      : ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration(sec)',
+         'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
+         'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate'];
+    
+    const dataKeys = hasTrailerData
+      ? ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration',
+         'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
+         'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate', 'trailerVideo', 'trailerAudio', 'trailerLanguage']
+      : ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration',
+         'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
+         'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate'];
     
     const csvRows = [headers.join(',')];
     contentData.forEach(row => {
@@ -294,20 +300,24 @@ const BulkContentManager = () => {
   const exportToXLSX = () => {
     if (contentData.length === 0) return alert('No data to export');
     
-    const baseHeaders = ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration(sec)',
-      'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
-      'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate'];
-    const baseKeys = ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration',
-      'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
-      'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate'];
-    
-    const trailerHeaders = ['trailerVideo', 'trailerAudio', 'trailerLanguage'];
-    const trailerKeys = ['trailerVideo', 'trailerAudio', 'trailerLanguage'];
-    
+    // Check if any row has trailer data
     const hasTrailerData = contentData.some(row => row.trailerVideo || row.trailerAudio || row.trailerLanguage);
     
-    const headers = hasTrailerData ? [...baseHeaders, ...trailerHeaders] : baseHeaders;
-    const dataKeys = hasTrailerData ? [...baseKeys, ...trailerKeys] : baseKeys;
+    const headers = hasTrailerData
+      ? ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration(sec)',
+         'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
+         'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate', 'trailerVideo', 'trailerAudio', 'trailerLanguage']
+      : ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration(sec)',
+         'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
+         'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate'];
+    
+    const dataKeys = hasTrailerData
+      ? ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration',
+         'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
+         'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate', 'trailerVideo', 'trailerAudio', 'trailerLanguage']
+      : ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration',
+         'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
+         'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate'];
     
     let xml = '<?xml version="1.0"?>\n<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n<Worksheet ss:Name="Content">\n<Table>\n<Row>\n';
     headers.forEach(h => xml += '<Cell><Data ss:Type="String">' + h + '</Data></Cell>');
@@ -541,9 +551,9 @@ const BulkContentManager = () => {
                 rows="3" placeholder="Name 1, Name 2, Name 3, ..." />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Extension (Optional)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Extension <span className="text-gray-400 text-xs">(Optional)</span></label>
               <input type="text" value={extension} onChange={(e) => setExtension(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., short" />
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="short" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Provider</label>
@@ -582,10 +592,33 @@ const BulkContentManager = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Summary Prefix</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center justify-between">
+                <span>Summary Prefix</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">Use as full summary:</span>
+                  <button
+                    onClick={() => setUseCustomSummary(!useCustomSummary)}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                      useCustomSummary ? 'bg-green-600' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                        useCustomSummary ? 'translate-x-5' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </label>
               <input type="text" value={summaryPrefix} onChange={(e) => setSummaryPrefix(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="MD09 Short H/L" />
+                placeholder={useCustomSummary ? "Enter full summary text" : "MD09 Short H/L"} />
+              {useCustomSummary && (
+                <p className="text-xs text-green-600 mt-1">✓ This text will be used as the complete summary</p>
+              )}
+              {!useCustomSummary && (
+                <p className="text-xs text-gray-500 mt-1">This will be added after each name</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Actor</label>
