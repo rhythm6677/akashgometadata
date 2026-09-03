@@ -76,7 +76,7 @@ const BulkContentManager = () => {
     setContentMode(mode);
     if (mode === 'goals') {
       setExtensionPrefix('GoalsMD');
-      setSummaryPrefix(': Premier League MD1 Goals H/L');
+      setSummaryPrefix(': Premier League MD1 Goal H/L');
     } else {
       setExtensionPrefix('ShortMD');
       setSummaryPrefix(': Premier League MD1 Short H/L');
@@ -175,7 +175,7 @@ const BulkContentManager = () => {
     const newEntries = [];
     for (const file of files) {
       const noExt = file.name.replace(/\.[^/.]+$/, '');
-      const resMatch = noExt.match(/^(.*?)(\d{2,5})\s*[x\*]\s*(\d{2,5})/i);
+      const resMatch = noExt.match(/^(.*?)(\d{2,5})\s*[x*]\s*(\d{2,5})/i);
       let prefix = noExt;
       let width = null;
       let height = null;
