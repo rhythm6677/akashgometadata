@@ -1,27 +1,27 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Download, Plus, Trash2, Upload, Save, Grid, Edit2, Check, X } from 'lucide-react';
+import { Download, Plus, Trash2, Upload, Save, Grid, Edit2, Check, X, Archive, Image as ImageIcon } from 'lucide-react';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 
 const BulkContentManager = () => {
   const [namesList, setNamesList] = useState('');
-  const [extension, setExtension] = useState('');
-  const [provider, setProvider] = useState('');
-  const [contentType, setContentType] = useState('');
-  const [keywords, setKeywords] = useState('');
-  const [rating, setRating] = useState('');
-  const [durationMinutes, setDurationMinutes] = useState('');
-  const [yearOfRelease, setYearOfRelease] = useState('');
-  const [languages, setLanguages] = useState('');
-  const [summaryPrefix, setSummaryPrefix] = useState('');
+  const [contentMode, setContentMode] = useState('short_extended');
+  const [extensionPrefix, setExtensionPrefix] = useState('ShortMD');
+  const [mdNumber, setMdNumber] = useState('1');
+  const [provider, setProvider] = useState('AkashGo');
+  const [contentType, setContentType] = useState('Web Shorts');
+  const [keywords, setKeywords] = useState('Premier League, English Premier League, EPL, Premier League 2026/27, EPL 2026/27, Premier League 26/27, EPL 26/27, Premier League Highlights, EPL Highlights, Premier League 2026/27 Highlights, EPL 2026/27 Highlights, Football Highlights, Premier League Match Highlights, EPL Match Highlights, Extended Highlights, Premier League Extended Highlights, Match Recap, Matchday Recap, Matchweek Highlights, Premier League Matchweek Highlights, Goal Highlights, Premier League Goals, EPL Goals, All Goals, Best Goals, Top Goals, Top Plays, Key Moments, Best Moments, Full Time Highlights, Post-Match Highlights, English Football, English Football Highlights, Matchday Highlights, Weekend Highlights, Goals of the Week, Premier League Review, Matchweek Review, Premier League Season Highlights, Premier League On Demand, Football Recap, Watch Premier League Goals, Must-Watch Moments, Premier League Player Highlights, Premier League Team Highlights, Best Saves, Premier League 2026/27 Goals, Premier League 2026/27 Match Recap, Premier League 2026/27 Match Highlights, Erling Haaland, Haaland Highlights, Haaland Goals, Bruno Fernandes, Bruno Fernandes Highlights, Bruno Fernandes Goals, Cole Palmer, Palmer Highlights, Palmer Goals, Bukayo Saka, Saka Highlights, Saka Goals, Joao Pedro, Joao Pedro Highlights, Joao Pedro Goals, Dominik Szoboszlai, Szoboszlai Highlights, Szoboszlai Goals, Bryan Mbeumo, Mbeumo Highlights, Mbeumo Goals, Florian Wirtz, Wirtz Highlights, Wirtz Goals, Alexander Isak, Isak Highlights, Isak Goals, Matheus Cunha, Cunha Highlights, Cunha Goals, Gabriel, Gabriel Highlights, Gabriel Goals, Viktor Gyokeres, Gyokeres Highlights, Gyokeres Goals, Phil Foden, Foden Highlights, Foden Goals, Declan Rice, Rice Highlights, Rice Goals, Virgil van Dijk, Van Dijk Highlights, Van Dijk Goals, Morgan Gibbs-White, Gibbs-White Highlights, Morgan Rogers, Rogers Highlights, Antoine Semenyo, Semenyo Highlights, Bruno Guimaraes, Bruno Guimaraes Highlights, Martin Odegaard, Odegaard Highlights, Premier League Players 2026/27, Premier League Stars 2026/27, Premier League Top Players 2026/27, Premier League Best Players 2026/27, Premier League New Season, New Premier League Season, EPL New Season, Premier League 2026/27 Season Highlights');
+  const [rating, setRating] = useState('U/A');
+  const [durationSeconds, setDurationSeconds] = useState('');
+  const [yearOfRelease, setYearOfRelease] = useState('2026');
+  const [languages, setLanguages] = useState('English');
+  const [summaryPrefix, setSummaryPrefix] = useState(': Premier League MD1 Short H/L');
   const [actor, setActor] = useState('');
   const [director, setDirector] = useState('');
-  const [genres, setGenres] = useState('');
-  const [audioLanguages, setAudioLanguages] = useState('');
-  const [isHd, setIsHd] = useState('');
-  const [expiryDate, setExpiryDate] = useState('');
-  const [trailerAudio, setTrailerAudio] = useState('');
-  const [trailerLanguage, setTrailerLanguage] = useState('');
-  const [isTrailerMode, setIsTrailerMode] = useState(false);
-  const [useCustomSummary, setUseCustomSummary] = useState(false);
+  const [genres, setGenres] = useState('Sports');
+  const [audioLanguages, setAudioLanguages] = useState('English');
+  const [isHd, setIsHd] = useState('HD');
+  const [expiryDate, setExpiryDate] = useState('2099-05-24');
   const [contentData, setContentData] = useState([]);
   const [savedSheets, setSavedSheets] = useState([]);
   const [currentSheetName, setCurrentSheetName] = useState('');
@@ -34,11 +34,15 @@ const BulkContentManager = () => {
     actions: 80, contentId: 200, provider: 150, contentType: 150, keywords: 150,
     rating: 100, duration: 120, yearOfRelease: 100, landscape: 250, portrait: 250,
     languages: 120, summary: 300, title: 300, filename: 250, actor: 150, director: 150,
-    genres: 150, audioLanguages: 150, isHd: 80, expiryDate: 120, trailerVideo: 250,
-    trailerAudio: 150, trailerLanguage: 150
+    genres: 150, audioLanguages: 150, isHd: 80, expiryDate: 120
   });
   const [resizing, setResizing] = useState(null);
   const tableRef = useRef(null);
+  const topScrollRef = useRef(null);
+  const bottomScrollRef = useRef(null);
+  const [tableScrollWidth, setTableScrollWidth] = useState(0);
+  const isSyncingScroll = useRef(false);
+  const [uploadedImages, setUploadedImages] = useState([]);
 
   useEffect(() => {
     const loadSavedSheets = () => {
@@ -68,9 +72,190 @@ const BulkContentManager = () => {
 
   const generateContentId = (name, ext) => normalizeText(name) + ext;
 
-  const minutesToSeconds = (minutes) => {
-    const mins = parseFloat(minutes);
-    return isNaN(mins) ? '' : Math.round(mins * 60);
+  const handleModeChange = (mode) => {
+    setContentMode(mode);
+    if (mode === 'goals') {
+      setExtensionPrefix('GoalsMD');
+      setSummaryPrefix(': Premier League MD1 Goals H/L');
+    } else {
+      setExtensionPrefix('ShortMD');
+      setSummaryPrefix(': Premier League MD1 Short H/L');
+    }
+  };
+
+  const getImageDimensions = (file) => {
+    return new Promise((resolve) => {
+      const img = new window.Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        URL.revokeObjectURL(url);
+      };
+      img.onerror = () => {
+        resolve({ width: null, height: null });
+        URL.revokeObjectURL(url);
+      };
+      img.src = url;
+    });
+  };
+
+  const getRowVersion = (row) => {
+    const prefix = (row.extensionPrefix || '').toLowerCase();
+    if (prefix.includes('extended')) return 'Extended';
+    if (prefix.includes('short')) return 'Short';
+    return 'Other';
+  };
+
+  const detectVersionFromName = (nameStr) => {
+    if (/extended/i.test(nameStr)) return 'Extended';
+    if (/short/i.test(nameStr)) return 'Short';
+    return null;
+  };
+
+  const getUniqueMatchNames = () => {
+    const seen = new Set();
+    const names = [];
+    contentData.forEach(row => {
+      if (row.originalName && !seen.has(row.originalName)) {
+        seen.add(row.originalName);
+        names.push(row.originalName);
+      }
+    });
+    return names;
+  };
+
+  const findMatchingName = (imageNamePrefix) => {
+    const normalizedImage = normalizeText(imageNamePrefix).toLowerCase();
+    let bestName = null;
+    let bestLength = 0;
+    contentData.forEach((row) => {
+      const key = normalizeText(row.originalName || '').toLowerCase();
+      if (key && normalizedImage.startsWith(key) && key.length > bestLength) {
+        bestName = row.originalName;
+        bestLength = key.length;
+      }
+    });
+    return bestName;
+  };
+
+  const getAvailableVersions = (matchedName) => {
+    const versions = new Set();
+    contentData.forEach(row => {
+      if (row.originalName === matchedName) versions.add(getRowVersion(row));
+    });
+    return versions;
+  };
+
+  const resolveRowIndex = (matchedName, version) => {
+    if (!matchedName) return null;
+    const matches = [];
+    contentData.forEach((row, idx) => {
+      if (row.originalName === matchedName) matches.push({ idx, version: getRowVersion(row) });
+    });
+    if (matches.length === 0) return null;
+    if (matches.length === 1) return matches[0].idx;
+    const exact = matches.find(m => m.version === version);
+    if (exact) return exact.idx;
+    const other = matches.find(m => m.version === 'Other');
+    if (other) return other.idx;
+    return null;
+  };
+
+  const computeNewFileName = (matchedName, version, orientation) => {
+    const idx = resolveRowIndex(matchedName, version);
+    if (idx === null || !contentData[idx]) return '';
+    const row = contentData[idx];
+    return orientation === 'Landscape' ? row.landscape : row.portrait;
+  };
+
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const newEntries = [];
+    for (const file of files) {
+      const noExt = file.name.replace(/\.[^/.]+$/, '');
+      const resMatch = noExt.match(/^(.*?)(\d{2,5})\s*[x\*]\s*(\d{2,5})/i);
+      let prefix = noExt;
+      let width = null;
+      let height = null;
+      if (resMatch) {
+        prefix = resMatch[1];
+        width = parseInt(resMatch[2], 10);
+        height = parseInt(resMatch[3], 10);
+      }
+      if (!width || !height) {
+        const dims = await getImageDimensions(file);
+        width = dims.width;
+        height = dims.height;
+      }
+      const orientation = (width && height && width < height) ? 'Portrait' : 'Landscape';
+      const matchedName = findMatchingName(prefix);
+      const detected = detectVersionFromName(prefix);
+      const available = matchedName ? getAvailableVersions(matchedName) : new Set();
+      let version = detected;
+      if (!version || (available.size > 0 && !available.has(version) && !available.has('Other'))) {
+        if (available.size === 1) {
+          version = [...available][0];
+        } else if (!version) {
+          version = null;
+        }
+      }
+
+      newEntries.push({
+        id: Date.now() + '_' + Math.random().toString(36).slice(2),
+        file,
+        originalName: file.name,
+        previewUrl: URL.createObjectURL(file),
+        width, height, orientation,
+        matchedName,
+        version
+      });
+    }
+
+    setUploadedImages(prev => [...prev, ...newEntries]);
+    e.target.value = '';
+  };
+
+  const updateImageOverride = (id, field, value) => {
+    setUploadedImages(prev => prev.map(img => (
+      img.id === id ? { ...img, [field]: value } : img
+    )));
+  };
+
+  const removeImage = (id) => {
+    setUploadedImages(prev => {
+      const target = prev.find(img => img.id === id);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter(img => img.id !== id);
+    });
+  };
+
+  const clearAllImages = () => {
+    uploadedImages.forEach(img => URL.revokeObjectURL(img.previewUrl));
+    setUploadedImages([]);
+  };
+
+  const downloadImage = (img) => {
+    const fileName = computeNewFileName(img.matchedName, img.version, img.orientation);
+    if (!fileName) return alert('No matching content row for this image yet. Please select one manually.');
+    const url = URL.createObjectURL(img.file);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadAllAsZip = async () => {
+    const readyImages = uploadedImages
+      .map(img => ({ img, fileName: computeNewFileName(img.matchedName, img.version, img.orientation) }))
+      .filter(entry => entry.fileName);
+    if (readyImages.length === 0) return alert('No matched images to download yet.');
+    const zip = new JSZip();
+    readyImages.forEach(entry => zip.file(entry.fileName, entry.img.file));
+    const blob = await zip.generateAsync({ type: 'blob' });
+    saveAs(blob, 'renamed_images_' + Date.now() + '.zip');
   };
 
   const formatDate = (dateString) => {
@@ -85,45 +270,27 @@ const BulkContentManager = () => {
     const names = namesList.split(',').map(n => n.trim()).filter(n => n);
     if (names.length === 0) return alert('Please enter at least one name');
 
+    const extension = extensionPrefix + mdNumber;
+
     const newData = names.map(name => {
       const contentId = generateContentId(name, extension);
-      // Use custom summary if toggle is on, otherwise add prefix to name
-      const summary = useCustomSummary ? summaryPrefix : (name + summaryPrefix);
-      
-      if (isTrailerMode) {
-        return {
-          contentId, provider, contentType, keywords, rating,
-          duration: minutesToSeconds(durationMinutes), yearOfRelease,
-          landscape: contentId + '_Landscape.jpg',
-          portrait: contentId + '_Portrait.jpg',
-          languages, summary, title: summary, 
-          filename: '',
-          actor, director, genres, audioLanguages, isHd,
-          expiryDate: expiryDate ? formatDate(expiryDate) : '',
-          trailerVideo: contentId + '.mp4',
-          trailerAudio: trailerAudio,
-          trailerLanguage: trailerLanguage,
-          originalName: name
-        };
-      } else {
-        return {
-          contentId, provider, contentType, keywords, rating,
-          duration: minutesToSeconds(durationMinutes), yearOfRelease,
-          landscape: contentId + '_Landscape.jpg',
-          portrait: contentId + '_Portrait.jpg',
-          languages, summary, title: summary, 
-          filename: contentId + '.mp4',
-          actor, director, genres, audioLanguages, isHd,
-          expiryDate: expiryDate ? formatDate(expiryDate) : '',
-          trailerVideo: '',
-          trailerAudio: '',
-          trailerLanguage: '',
-          originalName: name
-        };
-      }
+      const summary = name + summaryPrefix;
+
+      return {
+        contentId, provider, contentType, keywords, rating,
+        duration: durationSeconds, yearOfRelease,
+        landscape: contentId + '_Landscape.jpg',
+        portrait: contentId + '_Portrait.jpg',
+        languages, summary, title: summary,
+        filename: contentId + '.mp4',
+        actor, director, genres, audioLanguages, isHd,
+        expiryDate: expiryDate ? formatDate(expiryDate) : '',
+        originalName: name,
+        extensionPrefix: extensionPrefix
+      };
     });
     setContentData([...contentData, ...newData]);
-    
+
     setTimeout(() => {
       const tableElement = document.getElementById('content-table-section');
       if (tableElement) {
@@ -135,16 +302,16 @@ const BulkContentManager = () => {
   const saveCurrentSheet = () => {
     if (contentData.length === 0) return alert('No data to save');
     const sheetName = currentSheetName || `Sheet_${Date.now()}`;
-    
-    const sheet = { 
-      name: sheetName, 
-      data: contentData, 
-      timestamp: Date.now() 
+
+    const sheet = {
+      name: sheetName,
+      data: contentData,
+      timestamp: Date.now()
     };
-    
+
     const existingIndex = savedSheets.findIndex(s => s.name === sheetName);
     let updatedSheets;
-    
+
     if (existingIndex >= 0) {
       updatedSheets = [...savedSheets];
       updatedSheets[existingIndex] = sheet;
@@ -153,7 +320,7 @@ const BulkContentManager = () => {
       updatedSheets = [...savedSheets, sheet];
       alert('✅ Sheet saved successfully!');
     }
-    
+
     setSavedSheets(updatedSheets);
     setCurrentSheetName(sheetName);
   };
@@ -171,10 +338,10 @@ const BulkContentManager = () => {
   const deleteSheet = (sheetName, e) => {
     e.stopPropagation();
     if (!window.confirm(`Delete "${sheetName}"?`)) return;
-    
+
     const updatedSheets = savedSheets.filter(s => s.name !== sheetName);
     setSavedSheets(updatedSheets);
-    
+
     if (currentSheetName === sheetName) {
       setContentData([]);
       setCurrentSheetName('');
@@ -199,11 +366,11 @@ const BulkContentManager = () => {
     if (savedSheets.some(s => s.name === editedSheetName && s.name !== currentSheetName)) {
       return alert('A sheet with this name already exists');
     }
-    
-    const updatedSheets = savedSheets.map(s => 
+
+    const updatedSheets = savedSheets.map(s =>
       s.name === currentSheetName ? { ...s, name: editedSheetName } : s
     );
-    
+
     setSavedSheets(updatedSheets);
     setCurrentSheetName(editedSheetName);
     setIsEditingName(false);
@@ -221,16 +388,7 @@ const BulkContentManager = () => {
   const saveCellEdit = () => {
     if (editingCell.index !== null && editingCell.field) {
       const updated = [...contentData];
-      if (editingCell.field === 'duration') {
-        const numValue = parseFloat(editingCell.value);
-        if (!isNaN(numValue) && numValue > 0) {
-          updated[editingCell.index][editingCell.field] = numValue < 1000 ? Math.round(numValue * 60) : Math.round(numValue);
-        } else {
-          updated[editingCell.index][editingCell.field] = editingCell.value;
-        }
-      } else {
-        updated[editingCell.index][editingCell.field] = editingCell.value;
-      }
+      updated[editingCell.index][editingCell.field] = editingCell.value;
       setContentData(updated);
       setEditingCell({ index: null, field: null, value: '' });
     }
@@ -261,31 +419,20 @@ const BulkContentManager = () => {
     }
   }, [resizing]);
 
+  const HEADERS = ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration(sec)',
+    'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
+    'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate'];
+
+  const DATA_KEYS = ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration',
+    'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
+    'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate'];
+
   const exportToCSV = () => {
     if (contentData.length === 0) return alert('No data to export');
-    
-    // Check if any row has trailer data
-    const hasTrailerData = contentData.some(row => row.trailerVideo || row.trailerAudio || row.trailerLanguage);
-    
-    const headers = hasTrailerData 
-      ? ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration(sec)',
-         'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
-         'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate', 'trailerVideo', 'trailerAudio', 'trailerLanguage']
-      : ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration(sec)',
-         'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
-         'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate'];
-    
-    const dataKeys = hasTrailerData
-      ? ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration',
-         'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
-         'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate', 'trailerVideo', 'trailerAudio', 'trailerLanguage']
-      : ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration',
-         'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
-         'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate'];
-    
-    const csvRows = [headers.join(',')];
+
+    const csvRows = [HEADERS.join(',')];
     contentData.forEach(row => {
-      const values = dataKeys.map(h => '"' + (row[h] || '').toString().replace(/"/g, '""') + '"');
+      const values = DATA_KEYS.map(h => '"' + (row[h] || '').toString().replace(/"/g, '""') + '"');
       csvRows.push(values.join(','));
     });
     const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
@@ -299,32 +446,13 @@ const BulkContentManager = () => {
 
   const exportToXLSX = () => {
     if (contentData.length === 0) return alert('No data to export');
-    
-    // Check if any row has trailer data
-    const hasTrailerData = contentData.some(row => row.trailerVideo || row.trailerAudio || row.trailerLanguage);
-    
-    const headers = hasTrailerData
-      ? ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration(sec)',
-         'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
-         'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate', 'trailerVideo', 'trailerAudio', 'trailerLanguage']
-      : ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration(sec)',
-         'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
-         'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate'];
-    
-    const dataKeys = hasTrailerData
-      ? ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration',
-         'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
-         'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate', 'trailerVideo', 'trailerAudio', 'trailerLanguage']
-      : ['contentId', 'provider', 'contentType', 'keywords', 'rating', 'duration',
-         'yearOfRelease', 'landscape', 'portrait', 'languages', 'summary', 'title', 'filename',
-         'actor', 'director', 'genres', 'audioLanguages', 'isHd', 'expiryDate'];
-    
+
     let xml = '<?xml version="1.0"?>\n<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n<Worksheet ss:Name="Content">\n<Table>\n<Row>\n';
-    headers.forEach(h => xml += '<Cell><Data ss:Type="String">' + h + '</Data></Cell>');
+    HEADERS.forEach(h => xml += '<Cell><Data ss:Type="String">' + h + '</Data></Cell>');
     xml += '</Row>\n';
     contentData.forEach(row => {
       xml += '<Row>';
-      dataKeys.forEach(h => {
+      DATA_KEYS.forEach(h => {
         const v = (row[h] || '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         xml += '<Cell><Data ss:Type="String">' + v + '</Data></Cell>';
       });
@@ -338,6 +466,28 @@ const BulkContentManager = () => {
     a.download = 'content_bulk_' + Date.now() + '.xls';
     a.click();
     window.URL.revokeObjectURL(url);
+  };
+
+  useEffect(() => {
+    if (tableRef.current) {
+      setTableScrollWidth(tableRef.current.scrollWidth);
+    }
+  }, [contentData, columnWidths]);
+
+  const handleTopScroll = (e) => {
+    if (isSyncingScroll.current) { isSyncingScroll.current = false; return; }
+    if (bottomScrollRef.current) {
+      isSyncingScroll.current = true;
+      bottomScrollRef.current.scrollLeft = e.target.scrollLeft;
+    }
+  };
+
+  const handleBottomScroll = (e) => {
+    if (isSyncingScroll.current) { isSyncingScroll.current = false; return; }
+    if (topScrollRef.current) {
+      isSyncingScroll.current = true;
+      topScrollRef.current.scrollLeft = e.target.scrollLeft;
+    }
   };
 
   const renderResizer = (column) => (
@@ -361,15 +511,16 @@ const BulkContentManager = () => {
             onKeyDown={(e) => { if (e.key === 'Enter') saveCellEdit(); else if (e.key === 'Escape') cancelCellEdit(); }}
             onBlur={saveCellEdit} autoFocus
             className="w-full px-1 py-1 border border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder={field === 'duration' ? 'Minutes, press Enter' : ''} />
+            placeholder={field === 'duration' ? 'Seconds' : ''} />
         </td>
       );
     }
     return (
       <td className="border border-gray-300 px-2 py-1 cursor-pointer hover:bg-gray-100"
-        style={{ width: columnWidths[field] + 'px' }}
-        onClick={() => startCellEdit(index, field, value)}>
-        <div className="px-1 py-1">{value || ''}</div>
+        style={{ width: columnWidths[field] + 'px', maxWidth: columnWidths[field] + 'px', height: '36px' }}
+        onClick={() => startCellEdit(index, field, value)}
+        title={value || ''}>
+        <div className="px-1 py-1 truncate whitespace-nowrap overflow-hidden">{value || ''}</div>
       </td>
     );
   };
@@ -384,7 +535,7 @@ const BulkContentManager = () => {
             Back to Form
           </button>
         </div>
-        
+
         {savedSheets.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-12 text-center">
             <p className="text-gray-500 text-lg">No saved sheets yet</p>
@@ -513,35 +664,22 @@ const BulkContentManager = () => {
         )}
 
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-700">Add New Bulk</h2>
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-gray-700">Trailer Mode:</span>
-              <button
-                onClick={() => setIsTrailerMode(!isTrailerMode)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  isTrailerMode ? 'bg-blue-600' : 'bg-gray-300'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    isTrailerMode ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-              <span className={`text-sm font-semibold ${isTrailerMode ? 'text-blue-600' : 'text-gray-500'}`}>
-                {isTrailerMode ? 'ON' : 'OFF'}
-              </span>
-            </div>
-          </div>
+          <h2 className="text-xl font-semibold text-gray-700 mb-4">Add New Bulk</h2>
 
-          {isTrailerMode && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-              <p className="text-sm text-blue-800">
-                <strong>Trailer Mode Active:</strong> Filename will be empty, trailerVideo will contain the video filename.
-              </p>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Content Mode</label>
+            <div className="flex gap-2">
+              <button onClick={() => handleModeChange('short_extended')}
+                className={'py-2 px-4 rounded-md border text-sm font-medium transition ' + (contentMode === 'short_extended' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50')}>
+                Short &amp; Extended
+              </button>
+              <button onClick={() => handleModeChange('goals')}
+                className={'py-2 px-4 rounded-md border text-sm font-medium transition ' + (contentMode === 'goals' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50')}>
+                Goals
+              </button>
             </div>
-          )}
+            <p className="text-xs text-gray-500 mt-1">Switches the Extension and Summary Prefix defaults below. Everything stays editable either way.</p>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="col-span-full">
@@ -551,9 +689,14 @@ const BulkContentManager = () => {
                 rows="3" placeholder="Name 1, Name 2, Name 3, ..." />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Extension <span className="text-gray-400 text-xs">(Optional)</span></label>
-              <input type="text" value={extension} onChange={(e) => setExtension(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="short" />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Extension</label>
+              <div className="flex gap-2">
+                <input type="text" value={extensionPrefix} onChange={(e) => setExtensionPrefix(e.target.value)}
+                  className="w-1/2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="ShortMD" />
+                <input type="text" value={mdNumber} onChange={(e) => setMdNumber(e.target.value)}
+                  className="w-1/2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="1" />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Will be appended as: {extensionPrefix}{mdNumber}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Provider</label>
@@ -576,10 +719,10 @@ const BulkContentManager = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Duration (minutes)</label>
-              <input type="number" value={durationMinutes} onChange={(e) => setDurationMinutes(e.target.value)}
+              <label className="block text-sm font-medium text-gray-700 mb-1">Duration (seconds)</label>
+              <input type="number" value={durationSeconds} onChange={(e) => setDurationSeconds(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Converts to seconds" />
+                placeholder="e.g. 5400" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Year of Release</label>
@@ -592,33 +735,11 @@ const BulkContentManager = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center justify-between">
-                <span>Summary Prefix</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500">Use as full summary:</span>
-                  <button
-                    onClick={() => setUseCustomSummary(!useCustomSummary)}
-                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                      useCustomSummary ? 'bg-green-600' : 'bg-gray-300'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-                        useCustomSummary ? 'translate-x-5' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                </div>
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Summary Prefix</label>
               <input type="text" value={summaryPrefix} onChange={(e) => setSummaryPrefix(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder={useCustomSummary ? "Enter full summary text" : "MD09 Short H/L"} />
-              {useCustomSummary && (
-                <p className="text-xs text-green-600 mt-1">✓ This text will be used as the complete summary</p>
-              )}
-              {!useCustomSummary && (
-                <p className="text-xs text-gray-500 mt-1">This will be added after each name</p>
-              )}
+                placeholder="MD09 Short H/L" />
+              <p className="text-xs text-gray-500 mt-1">This will be added after each name</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Actor</label>
@@ -650,23 +771,6 @@ const BulkContentManager = () => {
               <input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
-            
-            {isTrailerMode && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Trailer Audio</label>
-                  <input type="text" value={trailerAudio} onChange={(e) => setTrailerAudio(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g., English, Hindi" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Trailer Language</label>
-                  <input type="text" value={trailerLanguage} onChange={(e) => setTrailerLanguage(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g., en, hi" />
-                </div>
-              </>
-            )}
           </div>
 
           <button onClick={handleGenerate}
@@ -697,8 +801,12 @@ const BulkContentManager = () => {
 
             <div className="text-sm text-gray-600 mb-2">💡 Click any cell to edit. Press Enter to save, Escape to cancel. Drag borders to resize columns.</div>
 
-            <div className="overflow-x-auto">
-              <table className="border-collapse text-sm" ref={tableRef} style={{ width: 'max-content' }}>
+            <div ref={topScrollRef} onScroll={handleTopScroll} className="overflow-x-auto overflow-y-hidden" style={{ height: '16px' }}>
+              <div style={{ width: tableScrollWidth + 'px', height: '1px' }} />
+            </div>
+
+            <div ref={bottomScrollRef} onScroll={handleBottomScroll} className="overflow-x-auto">
+              <table className="border-collapse text-sm" ref={tableRef} style={{ width: 'max-content', tableLayout: 'fixed' }}>
                 <thead>
                   <tr className="bg-gray-100">
                     <th className="border border-gray-300 px-2 py-2 text-left font-semibold relative" style={{ width: columnWidths.actions + 'px' }}>
@@ -723,13 +831,6 @@ const BulkContentManager = () => {
                     <TableHeader column="audioLanguages" label="Audio Languages" />
                     <TableHeader column="isHd" label="Is HD" />
                     <TableHeader column="expiryDate" label="Expiry Date" />
-                    {contentData.some(row => row.trailerVideo || row.trailerAudio || row.trailerLanguage) && (
-                      <>
-                        <TableHeader column="trailerVideo" label="Trailer Video" />
-                        <TableHeader column="trailerAudio" label="Trailer Audio" />
-                        <TableHeader column="trailerLanguage" label="Trailer Language" />
-                      </>
-                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -760,13 +861,6 @@ const BulkContentManager = () => {
                       <TableCell index={index} field="audioLanguages" value={row.audioLanguages} />
                       <TableCell index={index} field="isHd" value={row.isHd} />
                       <TableCell index={index} field="expiryDate" value={row.expiryDate} />
-                      {contentData.some(r => r.trailerVideo || r.trailerAudio || r.trailerLanguage) && (
-                        <>
-                          <TableCell index={index} field="trailerVideo" value={row.trailerVideo} />
-                          <TableCell index={index} field="trailerAudio" value={row.trailerAudio} />
-                          <TableCell index={index} field="trailerLanguage" value={row.trailerLanguage} />
-                        </>
-                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -777,6 +871,127 @@ const BulkContentManager = () => {
               className="mt-6 w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition flex items-center justify-center gap-2">
               <Plus size={20} />Add New Bulk (Scroll to Top)
             </button>
+          </div>
+        )}
+
+        {contentData.length > 0 && (
+          <div className="bg-white rounded-lg shadow-md p-6 mt-6">
+            <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+              <h2 className="text-xl font-semibold text-gray-700 flex items-center gap-2">
+                <ImageIcon size={22} />Rename &amp; Download Images
+              </h2>
+              <div className="flex gap-2">
+                <label className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition flex items-center gap-2 cursor-pointer">
+                  <Upload size={18} />Upload Images
+                  <input type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
+                </label>
+                {uploadedImages.length > 0 && (
+                  <>
+                    <button onClick={downloadAllAsZip}
+                      className="bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition flex items-center gap-2">
+                      <Archive size={18} />Download All (ZIP)
+                    </button>
+                    <button onClick={clearAllImages}
+                      className="bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 transition flex items-center gap-2">
+                      <Trash2 size={18} />Clear All
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-4">
+              Upload images like "1 vs 2 Extended 1920*1080.jpg". Each image is matched to a match name by text, and to Short/Extended by keyword in the filename (or pick it manually if it's not detected). Orientation comes from the resolution in the filename — wider-than-tall becomes ..._Landscape.jpg, taller-than-wide becomes ..._Portrait.jpg.
+            </p>
+
+            {uploadedImages.length === 0 ? (
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-10 text-center text-gray-400">
+                No images uploaded yet
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {uploadedImages.map((img) => {
+                  const availableVersions = img.matchedName ? getAvailableVersions(img.matchedName) : new Set();
+                  const hasShort = availableVersions.has('Short') || availableVersions.has('Other');
+                  const hasExtended = availableVersions.has('Extended') || availableVersions.has('Other');
+                  const liveFileName = computeNewFileName(img.matchedName, img.version, img.orientation);
+                  return (
+                    <div key={img.id} className="border border-gray-200 rounded-lg p-3">
+                      <div className="flex items-start gap-4 flex-wrap">
+                        <img src={img.previewUrl} alt={img.originalName}
+                          className="w-20 h-20 object-contain rounded border border-gray-200 bg-gray-50 flex-shrink-0" />
+
+                        <div className="flex-1 min-w-[200px]">
+                          <div className="text-sm font-medium text-gray-800 break-words">{img.originalName}</div>
+                          <div className="text-xs text-gray-500 mt-0.5">
+                            {img.width && img.height ? img.width + ' x ' + img.height : 'Unknown size'}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <button onClick={() => downloadImage(img)} disabled={!liveFileName}
+                            className={'p-2 rounded-md ' + (liveFileName ? 'text-blue-600 hover:bg-blue-50' : 'text-gray-300 cursor-not-allowed')}
+                            title="Download">
+                            <Download size={18} />
+                          </button>
+                          <button onClick={() => removeImage(img.id)}
+                            className="p-2 rounded-md text-red-600 hover:bg-red-50" title="Remove">
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 flex-wrap mt-3">
+                        <select value={img.matchedName || ''}
+                          onChange={(e) => updateImageOverride(img.id, 'matchedName', e.target.value === '' ? null : e.target.value)}
+                          className="text-sm px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                          <option value="">No match</option>
+                          {getUniqueMatchNames().map((name) => (
+                            <option key={name} value={name}>{name}</option>
+                          ))}
+                        </select>
+
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => hasShort && updateImageOverride(img.id, 'version', 'Short')}
+                            disabled={!hasShort}
+                            title={hasShort ? '' : 'No Short version generated for this match'}
+                            className={'text-xs px-2 py-1 rounded-md border ' + (!hasShort ? 'bg-gray-50 text-gray-300 border-gray-200 cursor-not-allowed' : img.version === 'Short' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600 border-gray-300')}>
+                            Short
+                          </button>
+                          <button onClick={() => hasExtended && updateImageOverride(img.id, 'version', 'Extended')}
+                            disabled={!hasExtended}
+                            title={hasExtended ? '' : 'No Extended version generated for this match'}
+                            className={'text-xs px-2 py-1 rounded-md border ' + (!hasExtended ? 'bg-gray-50 text-gray-300 border-gray-200 cursor-not-allowed' : img.version === 'Extended' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600 border-gray-300')}>
+                            Extended
+                          </button>
+                        </div>
+
+                        <button onClick={() => updateImageOverride(img.id, 'orientation', 'Landscape')}
+                          className={'text-xs px-2 py-1 rounded-md border ' + (img.orientation === 'Landscape' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300')}>
+                          Landscape
+                        </button>
+                        <button onClick={() => updateImageOverride(img.id, 'orientation', 'Portrait')}
+                          className={'text-xs px-2 py-1 rounded-md border ' + (img.orientation === 'Portrait' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300')}>
+                          Portrait
+                        </button>
+                      </div>
+
+                      <div className="mt-2">
+                        {liveFileName ? (
+                          <div className="text-sm text-green-700 font-medium break-words">✓ {liveFileName}</div>
+                        ) : img.matchedName ? (
+                          <div className="text-sm text-red-600 font-medium">
+                            No {img.version || 'matching'} version found for "{img.matchedName}" — pick an available option above
+                          </div>
+                        ) : (
+                          <div className="text-sm text-red-600 font-medium">No match — select a match name above</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>
